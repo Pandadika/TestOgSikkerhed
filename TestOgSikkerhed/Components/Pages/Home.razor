@@ -4,6 +4,7 @@
 
 @inject IServiceProvider ServiceProvider;
 @inject UserManager<ApplicationUser> UserManager;
+@inject AuthenticationStateProvider authenticationState;
 
 <PageTitle>Home</PageTitle>
 
@@ -12,42 +13,49 @@
 Welcome to your new app.
 
 <AuthorizeView>
-	<Authorized>
-		<p id="authorized-message">You are authorized!</p>
-	</Authorized>
-	
-	<NotAuthorized>
-		<p id="authorized-message">You are not authorized to access this page.</p>
-	</NotAuthorized>
+  <Authorized>
+    <p id="authorized-message">You are authorized!</p>
+  </Authorized>
+  
+  <NotAuthorized>
+    <p id="authorized-message">You are not authorized to access this page.</p>
+  </NotAuthorized>
 </AuthorizeView>
 
 
 <AuthorizeView Roles="Admin">
-	<Authorized>
-		<p id="admin-message">and you are an administrator.</p>
-	</Authorized>
-	<NotAuthorized>
-		<p id="admin-message">you are not an admin</p>
-	</NotAuthorized>
+  <Authorized>
+    <p id="admin-message">and you are an administrator.</p>
+  </Authorized>
+  <NotAuthorized>
+    <p id="admin-message">you are not an admin</p>
+  </NotAuthorized>
 </AuthorizeView>
 
 @code{
-	protected override async Task OnInitializedAsync()
-	{
-		//await CreateUserRolesAsync("so@mail.ck", "Admin");
-	}
+  public bool? IsAuthenticated { get; set; }
+  public bool IsAdmin { get; set; }
 
-	public async Task CreateUserRolesAsync(string user, string role)
-	{
-		var roleManager = ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-		var userManager = UserManager;
+  protected override async Task OnInitializedAsync()
+  {
+    //await CreateUserRolesAsync("so@mail.ck", "Admin");
+    var state = await authenticationState.GetAuthenticationStateAsync();
+    IsAuthenticated = state.User.Identity?.IsAuthenticated;
+    IsAdmin = state.User.IsInRole("Admin");
+  }
 
-		if (!await roleManager.RoleExistsAsync(role))
-		{
-			await roleManager.CreateAsync(new IdentityRole(role));
-		}
+  public async Task CreateUserRolesAsync(string user, string role)
+  {
+    var roleManager = ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var userManager = UserManager;
 
-		ApplicationUser appUser = await userManager.FindByEmailAsync(user);
-		await userManager.AddToRoleAsync(appUser, role);
-	}
+    if (!await roleManager.RoleExistsAsync(role))
+    {
+      await roleManager.CreateAsync(new IdentityRole(role));
+    }
+
+    ApplicationUser? appUser = await userManager.FindByEmailAsync(user);
+    if (appUser != null)
+      await userManager.AddToRoleAsync(appUser, role);
+  }
 }
